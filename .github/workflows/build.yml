@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Commit
 
 permissions:
   contents: write
@@ -6,9 +6,9 @@ permissions:
 on:
   workflow_dispatch:
   schedule:
-# 北京时间 03:00 -> UTC 19:00 (前一天)
+    # 北京时间 03:00 -> UTC 19:00 (前一天)
     # 北京时间 15:00 -> UTC 07:00
-    - cron: '0 7,19 * * *'    
+    - cron: '0 7,19 * * *'
 
 jobs:
   build:
@@ -20,13 +20,8 @@ jobs:
     steps:
       - name: Check out the code
         uses: actions/checkout@v4
-
-      - name: Get release version
-        id: get_version
-        run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
-
-      - name: Check release version
-        run: echo "Release version is ${{ steps.get_version.outputs.version }}"
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -34,34 +29,32 @@ jobs:
           node-version: "latest"
 
       - name: Install dependencies
-        run: npm install --production
+        run: npm install
 
-      - name: Type check
-        run: npm run check
-        
       - name: Build project
         run: npm run build
 
-      - name: Read release note
-        id: read_release
-        shell: bash
+      - name: Commit and Push _worker.js
         run: |
-          r=$(cat RELEASE.md)         
-          r="${r//'%'/'%25'}"                               
-          r="${r//$'\n'/'%0A'}"                             
-          r="${r//$'\r'/'%0D'}"                             
-          echo "RELEASE_BODY=$r" >> $GITHUB_OUTPUT          
+          # 配置 Git 用户信息
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-      - name: Upload Release Assets
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/*
-          tag: v${{ steps.get_version.outputs.version }}
-          release_name: Release v${{ steps.get_version.outputs.version }}
-          overwrite: true
-          file_glob: true
-          prerelease: ${{ github.ref != 'refs/heads/main' }}
-          promote: ${{ github.ref == 'refs/heads/main' }}
-          make_latest: ${{ github.ref == 'refs/heads/main' }}
-          body: ${{ steps.read_release.outputs.RELEASE_BODY }}
+          # 将dist/worker.js命名为 _worker.js
+          if [ -f "dist/worker.js" ]; then
+            cp dist/worker.js ./_worker.js
+          else
+            echo "Error: dist/worker.js not found!"
+            exit 1
+          fi
+
+          # 提交到仓库
+          git add _worker.js
+          
+          # 检查
+          if git diff --staged --quiet; then
+            echo "No changes to _worker.js, skipping commit."
+          else
+            git commit -m "Automated build: update _worker.js"
+            git push origin HEAD:${{ github.ref }}
+          fi
