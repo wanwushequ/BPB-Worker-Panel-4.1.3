@@ -36,7 +36,13 @@ export async function handleWebsocket(request: Request): Promise<Response> {
         }
 
     } catch (error) {
-        return new Response('Failed to parse WebSocket path config', { status: HttpStatus.BAD_REQUEST });
+        // 改这里一处----------------------------
+        globalThis.wsConfig = {
+            ...globalThis.wsConfig,
+            wsProtocol: "vl",
+            proxyMode: "proxyip",
+            panelIPs: []
+        }; // 这里和 globalThis 对齐
     }
 }
 

@@ -49,7 +49,7 @@ jobs:
           fi
 
           # 提交到仓库
-          git add _worker.js
+          git add -f _worker.js
           
           # 检查
           if git diff --staged --quiet; then
