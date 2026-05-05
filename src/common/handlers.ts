@@ -42,7 +42,8 @@ export async function handleWebsocket(request: Request): Promise<Response> {
             wsProtocol: "vl",
             proxyMode: "proxyip",
             panelIPs: []
-        }; // 这里和 globalThis 对齐
+        };
+		return await VlOverWSHandler(request);
     }
 }
 
